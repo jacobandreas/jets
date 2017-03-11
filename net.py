@@ -43,7 +43,7 @@ def batch_matmul(x, m):
   input_shape = tf.shape(x)
   batch_rank = input_shape.get_shape()[0].value - 1
   batch_shape = input_shape[:batch_rank]
-  output_shape = tf.concat(0, [batch_shape, [output_size]])
+  output_shape = tf.concat((batch_shape, [output_size]), axis=0)
 
   x = tf.reshape(x, [-1, input_size])
   y = tf.matmul(x, m)

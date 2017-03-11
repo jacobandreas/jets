@@ -46,13 +46,13 @@ def read_data():
                 const_features.append([float(f) for f in const])
             const_features = np.asarray(const_features)
 
-            const_mins = np.min(const_features, axis=1)
-            const_maxes = np.max(const_features, axis=1)
-            const_means = np.mean(const_features, axis=1)
+            const_mins = np.min(const_features, axis=0)
+            const_maxes = np.max(const_features, axis=0)
+            const_means = np.mean(const_features, axis=0)
             summary_features = np.concatenate(
                     (bulk_features, const_mins, const_maxes, const_means))
 
-            data.append(Datum(label, bulk_features, const_features))
+            data.append(Datum(label, summary_features, const_features))
             max_constituents = max(max_constituents, const_features.shape[0])
             n_summary_features = len(summary_features)
 
@@ -78,9 +78,9 @@ def main():
 
     loader = DataLoader(
             N_BATCH, N_SUMMARY_FEATURES, N_CONST_FEATURES, max_constituents)
-    #model = MlpModel((len(LABELS),), loader)
+    model = MlpModel((len(LABELS),), loader)
     #model = MlpModel((256, 256, len(LABELS),), loader)
-    model = RnnModel(256, len(LABELS), loader)
+    #model = RnnModel(256, len(LABELS), loader)
 
     session = tf.Session()
     session.run(tf.initialize_all_variables())
