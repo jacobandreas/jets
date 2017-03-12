@@ -52,8 +52,11 @@ class MlpModel(object):
         self.t_acc = tf.reduce_mean(tf.cast(
                 tf.nn.in_top_k(self.t_scores, loader.t_label, 1), tf.float32))
 
-        optimizer = tf.train.AdamOptimizer(0.00003)
+        optimizer = tf.train.AdamOptimizer(0.0003)
         self.o_train = optimizer.minimize(self.t_loss, var_list=v_model)
+
+    def save(self, saver, session):
+        saver.save(session, "save/mlp.chk")
 
 class RnnModel(object):
     def __init__(self, n_hidden, n_labels, loader):

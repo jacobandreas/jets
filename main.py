@@ -13,14 +13,16 @@ LABELS = {
     "0.667": 4
 }
 
+REVERSE_LABELS = {v: k for k, v in LABELS.items()}
+
 N_BATCH = 100
 N_CONST_FEATURES = 4
 N_SUMMARY_FEATURES = 13
 
-N_TRAIN = 50000
+N_TRAIN = 95000
 N_VAL = 1000
 
-N_UPDATE = 100
+N_UPDATE = 10000
 
 Datum = namedtuple("Datum", ["label", "summary_features", "const_features"])
 
@@ -31,8 +33,8 @@ def read_data():
         c = 0
         for line in data_f:
             c += 1
-            if c > 51000:
-                break
+            #if c > 51000:
+            #    break
             parts = line.strip().split()
             #print line
             charge = parts[4]
@@ -84,15 +86,17 @@ def main():
 
     session = tf.Session()
     session.run(tf.initialize_all_variables())
+    saver = tf.train.Saver()
 
     loss = 0
-    for t in range(100000):
+    for t in range(1000000):
         loss += do_train_step(model, loader, train_data, session)
         if t > 0 and t % N_UPDATE == 0:
             loss /= N_UPDATE
             acc = do_val_step(model, loader, train_data, val_data, session)
             print loss, acc
             loss = 0
+            model.save(saver, session)
 
 if __name__ == "__main__":
     main()
