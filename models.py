@@ -46,6 +46,7 @@ class DataLoader(object):
 class MlpModel(object):
     def __init__(self, layers, loader):
         self.t_scores, v_model = net.mlp(loader.t_summary_features, layers)
+        self.t_probs = tf.nn.softmax(self.t_scores)
         self.t_loss = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
                     logits=self.t_scores, labels=loader.t_label))
@@ -66,6 +67,7 @@ class RnnModel(object):
                 cell, t_drop, loader.t_const_len, dtype=tf.float32)
         t_inputs = tf.concat((loader.t_summary_features, t_state), axis=1)
         self.t_scores, _ = net.mlp(t_inputs, (n_labels,))
+        self.t_probs = tf.nn.softmax(self.t_scores)
 
         v_model = tf.get_collection(tf.GraphKeys.VARIABLES)
 
@@ -77,3 +79,6 @@ class RnnModel(object):
 
         optimizer = tf.train.AdamOptimizer(0.0003)
         self.o_train = optimizer.minimize(self.t_loss, var_list=v_model)
+
+    def save(self, saver, session):
+        saver.save(session, "save/rnn.chk")

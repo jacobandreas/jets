@@ -3,14 +3,16 @@
 from models import *
 
 from collections import namedtuple
+import cPickle as pickle
 import tensorflow as tf
+import os
 
 LABELS = {
-    "-0.667": 0,
-    "-0.333": 1,
-    "0.000": 2,
-    "0.333": 3,
-    "0.667": 4
+    "-0.666667": 0,
+    "-0.333333": 1,
+    "0": 2,
+    "0.333333": 3,
+    "0.666667": 4
 }
 
 REVERSE_LABELS = {v: k for k, v in LABELS.items()}
@@ -19,26 +21,36 @@ N_BATCH = 100
 N_CONST_FEATURES = 4
 N_SUMMARY_FEATURES = 13
 
-N_TRAIN = 95000
-N_VAL = 1000
+N_TRAIN = 650000
+N_VAL = 5000
+#N_TRAIN = 0
+#N_VAL = 1000
 
 N_UPDATE = 10000
+#N_UPDATE = 100
+
+#KEEP_CONSTITUENTS = 10
+KEEP_CONSTITUENTS = 2
 
 Datum = namedtuple("Datum", ["label", "summary_features", "const_features"])
 
 def read_data():
+    #if os.path.exists("data/data.p"):
+    #    with open("data/data.p") as pickle_f:
+    #        data, max_constituents = pickle.load(pickle_f)
+    #        return data, max_constituents
+
     data = []
     max_constituents = 0
     with open("data/data.txt") as data_f:
+    #with open("data/check.txt") as data_f:
         c = 0
         for line in data_f:
             c += 1
-            #if c > 51000:
-            #    break
             parts = line.strip().split()
-            #print line
             charge = parts[4]
             label = LABELS[charge]
+            #label = 0
             bulk_features = np.asarray([float(f) for f in parts[5:6]])
             const_parts = parts[6:]
             assert len(const_parts) % 4 == 0
@@ -51,12 +63,18 @@ def read_data():
             const_mins = np.min(const_features, axis=0)
             const_maxes = np.max(const_features, axis=0)
             const_means = np.mean(const_features, axis=0)
-            summary_features = np.concatenate(
-                    (bulk_features, const_mins, const_maxes, const_means))
+            #summary_features = np.concatenate(
+            #        (bulk_features, const_mins, const_maxes, const_means))
+            summary_features = [0]
 
             data.append(Datum(label, summary_features, const_features))
             max_constituents = max(max_constituents, const_features.shape[0])
             n_summary_features = len(summary_features)
+
+    np.random.shuffle(data)
+
+    with open("data/data.p", "wb") as pickle_f:
+        pickle.dump((data, max_constituents), pickle_f) 
 
     return data, max_constituents
 
@@ -69,20 +87,36 @@ def do_val_step(model, loader, train_data, val_data, session):
     val_acc = 0
     for i_batch in range(0, N_VAL, N_BATCH):
         val_batch = val_data[i_batch : i_batch + N_BATCH]
-        va, = session.run([model.t_acc], loader.load(val_batch, sample=False))
+        scores, = session.run([model.t_scores], loader.load(val_batch, sample=False))
+        preds = np.argmax(scores, axis=1)
+        va = np.sum(preds == [datum.label for datum in val_batch])
         val_acc += va
-    return [train_acc, val_acc / (N_VAL / N_BATCH)]
+    return [train_acc, 1. * val_acc / N_VAL]
+
+def order_constituents(data):
+    for j in range(len(data)):
+        datum = data[j]
+        feats = datum.const_features
+        consts = [feats[i, :] for i in range(feats.shape[0])]
+        by_energy = sorted(consts, key=lambda x: x[0])
+        by_energy = by_energy[:KEEP_CONSTITUENTS]
+        data[j] = datum._replace(const_features=np.asarray(by_energy))
 
 def main():
     data, max_constituents = read_data()
+    order_constituents(data)
+    max_constituents = KEEP_CONSTITUENTS
     train_data = data[:N_TRAIN]
     val_data = data[N_TRAIN:N_TRAIN+N_VAL]
+    for datum in val_data:
+        print datum
+    exit()
 
     loader = DataLoader(
             N_BATCH, N_SUMMARY_FEATURES, N_CONST_FEATURES, max_constituents)
-    model = MlpModel((len(LABELS),), loader)
+    #model = MlpModel((len(LABELS),), loader)
     #model = MlpModel((256, 256, len(LABELS),), loader)
-    #model = RnnModel(256, len(LABELS), loader)
+    model = RnnModel(256, len(LABELS), loader)
 
     session = tf.Session()
     session.run(tf.initialize_all_variables())
