@@ -62,11 +62,12 @@ class MlpModel(object):
 class RnnModel(object):
     def __init__(self, n_hidden, n_labels, loader):
         cell = tf.contrib.rnn.GRUCell(n_hidden)
-        t_drop = tf.nn.dropout(loader.t_const_features, 0.9)
+        #t_drop = tf.nn.dropout(loader.t_const_features, 0.9)
+        t_drop = loader.t_const_features
         _, t_state = tf.nn.dynamic_rnn(
                 cell, t_drop, loader.t_const_len, dtype=tf.float32)
         t_inputs = tf.concat((loader.t_summary_features, t_state), axis=1)
-        self.t_scores, _ = net.mlp(t_inputs, (n_labels,))
+        self.t_scores, _ = net.mlp(t_inputs, (n_hidden, n_labels,))
         self.t_probs = tf.nn.softmax(self.t_scores)
 
         v_model = tf.get_collection(tf.GraphKeys.VARIABLES)
